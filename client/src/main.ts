@@ -5,8 +5,10 @@ import { UIManager } from './ui'
 import { ShopManager } from './shop'
 import { DiamondShopManager } from './diamond-shop'
 import { SnakeShopManager } from './snakeShop'
+import { TetrisShopManager } from './tetrisShop'
 import { TileShopManager } from './tileShop'
 import { LetterGame } from './letter-game'
+import { TetrisGame } from './tetris-game'
 
 class SnakeGame {
   private canvas: HTMLCanvasElement
@@ -580,6 +582,7 @@ class MikecrementalGame {
   private degenDiamondsScene: HTMLElement | null = null
   private diamondGameScene: HTMLElement | null = null
   private snakeGameScene: HTMLElement | null = null
+  private tetrisGameScene: HTMLElement | null = null
   private letterGameScene: HTMLElement | null = null
   private currentWager: number = 0
   private currentDiamondWager: number = 0
@@ -591,6 +594,7 @@ class MikecrementalGame {
     money: 0,
     diamonds: 0,
     emeralds: 0,
+    sapphires: 0,
     tiles: 0,
     health: 10,
     maxHealth: 10,
@@ -603,15 +607,18 @@ class MikecrementalGame {
     isInDegenDiamonds: false,
     isInDiamondShop: false,
     isInSnakeShop: false,
+    isInTetrisShop: false,
     isInTileShop: false,
     isInLetterGameLaunch: false,
     isInLetterGame: false,
+    isInTetrisGame: false,
     bombSliderUnlocked: false,
     bombCount: 1,
     isInSnakeGame: false,
     borderPortalsUnlocked: false,
     discardZoneUnlocked: false,
-    letterGameUnlocked: false
+    letterGameUnlocked: false,
+    tetrisGameUnlocked: false
   }
 
   // Bomb count to percentage mapping
@@ -630,8 +637,10 @@ class MikecrementalGame {
   private shop: ShopManager
   private diamondShop: DiamondShopManager
   private snakeShop: SnakeShopManager
+  private tetrisShop: TetrisShopManager | null = null
   private tileShop: TileShopManager
   private letterGame: LetterGame
+  private tetrisGame: TetrisGame | null = null
 
   // Add to class properties:
   private snakeGame: SnakeGame | null = null;
@@ -814,6 +823,7 @@ class MikecrementalGame {
       this.ui.createMoneyCounter()
       this.ui.createDiamondsCounter()
       this.ui.createEmeraldsCounter()
+      this.ui.createSapphiresCounter()
       this.ui.createTilesCounter()
       this.ui.createHealthBar()
       this.ui.createTimer()
@@ -919,10 +929,29 @@ class MikecrementalGame {
     return false
   }
 
+  public getSapphires(): number {
+    return this.state.sapphires
+  }
+
+  public addSapphires(amount: number): void {
+    this.state.sapphires += amount
+    this.ui.updateSapphiresCounter(this.state.sapphires)
+  }
+
+  public spendSapphires(amount: number): boolean {
+    if (this.state.sapphires >= amount) {
+      this.state.sapphires -= amount
+      this.ui.updateSapphiresCounter(this.state.sapphires)
+      return true
+    }
+    return false
+  }
+
   public refreshAllCurrencyDisplays(): void {
     this.ui.updateMoneyCounter(this.state.money)
     this.ui.updateDiamondsCounter(this.state.diamonds)
     this.ui.updateEmeraldsCounter(this.state.emeralds)
+    this.ui.updateSapphiresCounter(this.state.sapphires)
     this.ui.updateTilesCounter(this.state.tiles)
   }
 
@@ -956,11 +985,20 @@ class MikecrementalGame {
       elements.emeraldsCounter.style.zIndex = '300'
     }
     
+    // Sapphires counter - visible if player has sapphires
+    if (elements.sapphiresCounter && this.state.sapphires > 0) {
+      elements.sapphiresCounter.style.display = 'block'
+      elements.sapphiresCounter.style.position = 'absolute'
+      elements.sapphiresCounter.style.top = '180px'
+      elements.sapphiresCounter.style.left = '20px'
+      elements.sapphiresCounter.style.zIndex = '300'
+    }
+    
     // Tiles counter - visible if player has tiles
     if (elements.tilesCounter && this.state.tiles > 0) {
       elements.tilesCounter.style.display = 'block'
       elements.tilesCounter.style.position = 'absolute'
-      elements.tilesCounter.style.top = '180px'
+      elements.tilesCounter.style.top = '220px'
       elements.tilesCounter.style.left = '20px'
       elements.tilesCounter.style.zIndex = '300'
     }
@@ -999,6 +1037,14 @@ class MikecrementalGame {
     this.state.isInTileShop = inTileShop
   }
 
+  public setTetrisShopState(inTetrisShop: boolean): void {
+    this.state.isInTetrisShop = inTetrisShop
+  }
+
+  public setTetrisGameState(inTetrisGame: boolean): void {
+    this.state.isInTetrisGame = inTetrisGame
+  }
+
   public setLetterGameLaunchState(inLetterGameLaunch: boolean): void {
     this.state.isInLetterGameLaunch = inLetterGameLaunch
   }
@@ -1024,6 +1070,10 @@ class MikecrementalGame {
 
   public getExtraFoodLevel(): number {
     return this.snakeShop.getUpgradeLevel('double-food')
+  }
+
+  public getTetrisLevelBonus(): number {
+    return this.tetrisShop ? this.tetrisShop.getUpgradeLevel('level-bonus') * 0.2 : 0
   }
 
   public hasHealOnPurchase(): boolean {
@@ -1062,6 +1112,240 @@ class MikecrementalGame {
 
   public showTileShopButton(): void {
     this.ui.createTileShopButton(() => this.tileShop.openTileShop())
+  }
+
+  public showTetrisButton(): void {
+    this.state.tetrisGameUnlocked = true
+    this.ui.createTetrisButton(() => this.openTetrisGame())
+  }
+
+  public openTetrisGame(): void {
+    if (!this.tetrisGameScene) {
+      this.createTetrisGameScene()
+    }
+    
+    const elements = this.ui.getElements()
+    if (elements.gameView) {
+      elements.gameView.style.display = 'none'
+    }
+    
+    // Refresh all currency displays to ensure they're visible on this screen
+    this.refreshAllCurrencyDisplays()
+    
+    // Explicitly show and position all currency elements for this screen
+    this.ensureCurrencyElementsVisible()
+    
+    this.tetrisGameScene!.style.display = 'block'
+    this.state.isInTetrisGame = true
+    console.log('Opened Tetris Game')
+  }
+
+  private closeTetrisGame(): void {
+    if (this.tetrisGameScene) {
+      this.tetrisGameScene.style.display = 'none'
+    }
+    
+    this.restoreMainUI()
+    this.state.isInTetrisGame = false
+    console.log('Closed Tetris Game')
+  }
+
+  private createTetrisGameScene(): void {
+    const app = document.querySelector<HTMLDivElement>('#app')!
+    
+    const tetrisScene = document.createElement('div')
+    tetrisScene.className = 'tetris-game-container'
+    tetrisScene.style.display = 'none'
+    
+    // Scene title
+    const title = document.createElement('h2')
+    title.className = 'tetris-title'
+    title.textContent = '🔷 TETRIS GAME 🔷'
+    title.style.color = '#ffffff'
+    title.style.fontSize = '2.2rem'
+    title.style.fontWeight = 'bold'
+    title.style.textShadow = '0 0 30px rgba(33, 150, 243, 0.8)'
+    title.style.margin = '0 0 15px 0'
+    title.style.letterSpacing = '0.1em'
+    title.style.textAlign = 'center'
+    title.style.animation = 'glow-blue-tetris 2s ease-in-out infinite alternate'
+    
+    // Game info section
+    const gameInfo = document.createElement('div')
+    gameInfo.className = 'tetris-game-info'
+    
+    const scoreDisplay = document.createElement('div')
+    scoreDisplay.className = 'tetris-score'
+    scoreDisplay.textContent = 'Score: 0'
+    
+    const rewardDisplay = document.createElement('div')
+    rewardDisplay.className = 'tetris-reward'
+    
+    // Create reward display with sapphire icon
+    const rewardLabel = document.createElement('span')
+    rewardLabel.textContent = 'Reward: '
+    
+    const sapphireIcon = document.createElement('img')
+    sapphireIcon.src = '/assets/sapphire.png'
+    sapphireIcon.className = 'sapphire-icon-small'
+    sapphireIcon.style.width = '16px'
+    sapphireIcon.style.height = '16px'
+    sapphireIcon.style.marginRight = '3px'
+    sapphireIcon.style.verticalAlign = 'middle'
+    
+    const rewardCount = document.createElement('span')
+    rewardCount.textContent = '0'
+    
+    rewardDisplay.appendChild(rewardLabel)
+    rewardDisplay.appendChild(sapphireIcon)
+    rewardDisplay.appendChild(rewardCount)
+    
+    gameInfo.appendChild(scoreDisplay)
+    gameInfo.appendChild(rewardDisplay)
+    
+    // Game canvas
+    const gameCanvas = document.createElement('canvas')
+    gameCanvas.className = 'tetris-canvas'
+    gameCanvas.width = 300
+    gameCanvas.height = 600
+    
+    // Game controls info
+    const controlsInfo = document.createElement('div')
+    controlsInfo.className = 'tetris-controls'
+    controlsInfo.innerHTML = `
+      <div>Controls:</div>
+      <div>A/D or ←/→ : Move</div>
+      <div>S or ↓ : Soft Drop</div>
+      <div>W or ↑ : Rotate</div>
+      <div>Space : Hard Drop</div>
+    `
+    
+    // Game buttons
+    const buttonContainer = document.createElement('div')
+    buttonContainer.className = 'tetris-buttons'
+    
+    const startButton = document.createElement('button')
+    startButton.className = 'tetris-start-button'
+    startButton.textContent = 'START GAME (for 💎15)'
+    
+    const restartButton = document.createElement('button')
+    restartButton.className = 'tetris-restart-button'
+    restartButton.textContent = 'RESTART (for 💎15)'
+    restartButton.style.display = 'none'
+    
+    const tetrisShopButton = document.createElement('button')
+    tetrisShopButton.className = 'tetris-shop-button'
+    tetrisShopButton.textContent = '🔷 SHOP'
+    
+    const backButton = document.createElement('button')
+    backButton.className = 'tetris-back-button'
+    backButton.textContent = 'BACK'
+    
+    buttonContainer.appendChild(startButton)
+    buttonContainer.appendChild(restartButton)
+    
+    // Create content wrapper for better centering
+    const contentWrapper = document.createElement('div')
+    contentWrapper.className = 'tetris-game-content'
+    
+    contentWrapper.appendChild(title)
+    contentWrapper.appendChild(gameCanvas)
+    contentWrapper.appendChild(gameInfo)
+    contentWrapper.appendChild(controlsInfo)
+    contentWrapper.appendChild(buttonContainer)
+    
+    // Initialize tetris game logic and shop after contentWrapper is created
+    const tetrisGame = new TetrisGame(gameCanvas, scoreDisplay, rewardDisplay, startButton, restartButton, this, contentWrapper)
+    if (!this.tetrisShop) {
+      this.tetrisShop = new TetrisShopManager(this.ui, this)
+    }
+    
+    // Update button states based on diamond availability
+    const updateButtonStates = () => {
+      const canAfford = this.state.diamonds >= 15
+      if (!canAfford) {
+        if (startButton.style.display !== 'none') {
+          startButton.textContent = 'Need 💎15 to Play'
+          startButton.style.opacity = '0.6'
+          startButton.style.cursor = 'not-allowed'
+        }
+        if (restartButton.style.display !== 'none') {
+          restartButton.textContent = 'Need 💎15 to Play'
+          restartButton.style.opacity = '0.6'
+          restartButton.style.cursor = 'not-allowed'
+        }
+      } else {
+        if (startButton.style.display !== 'none') {
+          startButton.textContent = 'START GAME (for 💎15)'
+          startButton.style.opacity = '1'
+          startButton.style.cursor = 'pointer'
+        }
+        if (restartButton.style.display !== 'none') {
+          restartButton.textContent = 'RESTART (for 💎15)'
+          restartButton.style.opacity = '1'
+          restartButton.style.cursor = 'pointer'
+        }
+      }
+    }
+    
+    // Initial update
+    updateButtonStates()
+    
+    // Store reference for updates
+    ;(tetrisScene as any).updateButtonStates = updateButtonStates
+    
+    startButton.addEventListener('click', () => {
+      if (this.state.diamonds >= 15) {
+        this.spendDiamonds(15)
+        tetrisGame.startGame()
+        updateButtonStates()
+      } else {
+        // Show insufficient diamonds message
+        const currentText = startButton.textContent
+        startButton.textContent = 'Need 💎15!'
+        startButton.style.background = 'linear-gradient(45deg, #ff6b6b, #ee5a24)'
+        setTimeout(() => {
+          startButton.textContent = currentText
+          startButton.style.background = 'linear-gradient(45deg, #2196f3, #1976d2)'
+        }, 1500)
+      }
+    })
+    
+    restartButton.addEventListener('click', () => {
+      if (this.state.diamonds >= 15) {
+        this.spendDiamonds(15)
+        tetrisGame.restartGame()
+        updateButtonStates()
+      } else {
+        // Show insufficient diamonds message
+        const currentText = restartButton.textContent
+        restartButton.textContent = 'Need 💎15!'
+        restartButton.style.background = 'linear-gradient(45deg, #ff6b6b, #ee5a24)'
+        setTimeout(() => {
+          restartButton.textContent = currentText
+          restartButton.style.background = 'linear-gradient(45deg, #2196f3, #1976d2)'
+        }, 1500)
+      }
+    })
+    
+    tetrisShopButton.addEventListener('click', () => {
+      if (this.tetrisShop) {
+        this.tetrisShop.openTetrisShop()
+      }
+    })
+
+    backButton.addEventListener('click', () => {
+      tetrisGame.pauseGame()
+      this.closeTetrisGame()
+    })
+    
+    tetrisScene.appendChild(contentWrapper)
+    tetrisScene.appendChild(tetrisShopButton)
+    tetrisScene.appendChild(backButton)
+    
+    app.appendChild(tetrisScene)
+    this.tetrisGameScene = tetrisScene
+    this.tetrisGame = tetrisGame
   }
 
   private createDegenDiamondsScene(): void {

@@ -88,6 +88,33 @@ export class UIManager {
     return emeraldsCounter
   }
 
+  createSapphiresCounter(): HTMLElement {
+    const sapphiresCounter = document.createElement('div')
+    sapphiresCounter.className = 'sapphires-counter'
+    sapphiresCounter.style.display = 'none' // Initially hidden
+    
+    // Create sapphire icon
+    const sapphireIcon = document.createElement('img')
+    sapphireIcon.src = '/assets/sapphire.png'
+    sapphireIcon.className = 'sapphire-icon'
+    sapphireIcon.style.width = '20px'
+    sapphireIcon.style.height = '20px'
+    sapphireIcon.style.marginRight = '5px'
+    sapphireIcon.style.verticalAlign = 'middle'
+    
+    const countText = document.createElement('span')
+    countText.textContent = '0'
+    
+    sapphiresCounter.appendChild(sapphireIcon)
+    sapphiresCounter.appendChild(countText)
+    
+    const app = document.querySelector<HTMLDivElement>('#app')!
+    app.appendChild(sapphiresCounter)
+    
+    this.elements.sapphiresCounter = sapphiresCounter
+    return sapphiresCounter
+  }
+
   createTilesCounter(): HTMLElement {
     const tilesCounter = document.createElement('div')
     tilesCounter.className = 'tiles-counter'
@@ -225,6 +252,19 @@ export class UIManager {
     return snakeButton
   }
 
+  createTetrisButton(onClick: () => void): HTMLElement {
+    const tetrisButton = document.createElement('button')
+    tetrisButton.className = 'tetris-button'
+    tetrisButton.textContent = 'TETRIS'
+    
+    tetrisButton.addEventListener('click', onClick)
+    
+    const app = document.querySelector<HTMLDivElement>('#app')!
+    app.appendChild(tetrisButton)
+    
+    return tetrisButton
+  }
+
   createTooltip(): HTMLElement {
     const tooltip = document.createElement('div')
     tooltip.className = 'tooltip'
@@ -283,6 +323,22 @@ export class UIManager {
       }
       // Only show if player has emeralds
       this.elements.emeraldsCounter.style.display = emeralds > 0 ? 'block' : 'none'
+    }
+  }
+
+  updateSapphiresCounter(sapphires: number): void {
+    // Create sapphires counter if it doesn't exist
+    if (!this.elements.sapphiresCounter) {
+      this.createSapphiresCounter()
+    }
+    
+    if (this.elements.sapphiresCounter) {
+      const countText = this.elements.sapphiresCounter.querySelector('span')
+      if (countText) {
+        countText.textContent = sapphires.toString()
+      }
+      // Only show if player has sapphires
+      this.elements.sapphiresCounter.style.display = sapphires > 0 ? 'block' : 'none'
     }
   }
 
