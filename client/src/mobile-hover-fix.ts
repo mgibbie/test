@@ -5,7 +5,7 @@
 
 class MobileHoverFix {
   private touchDevice: boolean = false
-  private elementsWithHover: Set<Element> = new Set()
+  private clearTimeout: number | null = null
 
   constructor() {
     this.detectTouchDevice()
@@ -24,12 +24,10 @@ class MobileHoverFix {
   private init(): void {
     if (!this.touchDevice) return
 
-    // Add touch event listeners to body
-    document.body.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: true })
-    document.body.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: true })
-    document.body.addEventListener('touchcancel', this.handleTouchEnd.bind(this), { passive: true })
+    // Simple global touch handler
+    document.addEventListener('touchstart', this.handleTouch.bind(this), { passive: true })
 
-    // Add event listeners for upgrade nodes and interactive elements
+    // Add event listeners for interactive elements
     this.addHoverListeners()
   }
 
@@ -69,31 +67,29 @@ class MobileHoverFix {
 
   private addElementListeners(element: Element): void {
     element.addEventListener('touchstart', (e) => {
-      this.clearAllHoverStates()
       element.classList.add('touch-active')
     }, { passive: true })
 
     element.addEventListener('touchend', (e) => {
-      setTimeout(() => {
-        element.classList.remove('touch-active')
-        this.clearAllHoverStates()
-      }, 50)
+      element.classList.remove('touch-active')
     }, { passive: true })
 
     element.addEventListener('touchcancel', (e) => {
       element.classList.remove('touch-active')
-      this.clearAllHoverStates()
     }, { passive: true })
   }
 
-  private handleTouchStart(e: TouchEvent): void {
-    this.clearAllHoverStates()
-  }
+  private handleTouch(e: TouchEvent): void {
+    // Clear any existing timeout
+    if (this.clearTimeout) {
+      clearTimeout(this.clearTimeout)
+    }
 
-  private handleTouchEnd(e: TouchEvent): void {
-    // Small delay to ensure all hover states are cleared
-    setTimeout(() => {
-      this.clearAllHoverStates()
+    // Debounced hover state clearing
+    this.clearTimeout = window.setTimeout(() => {
+      if (document.querySelectorAll(':hover').length > 0) {
+        this.clearAllHoverStates()
+      }
     }, 100)
   }
 
@@ -104,14 +100,11 @@ class MobileHoverFix {
       element.removeAttribute('data-hover')
     })
 
-    // Force reflow to clear any stuck CSS hover states
-    document.querySelectorAll('*:hover').forEach(element => {
-      if (element.parentNode) {
-        const temp = element.nextSibling
-        const parent = element.parentNode
-        parent.removeChild(element)
-        parent.insertBefore(element, temp)
-      }
+    // Gentle approach: just add a temporary class to force CSS recalculation
+    document.body.classList.add('mobile-touch-clear')
+    // Remove it on next frame to trigger reflow without visual disruption
+    requestAnimationFrame(() => {
+      document.body.classList.remove('mobile-touch-clear')
     })
   }
 
