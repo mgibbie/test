@@ -67,16 +67,16 @@ export class ShopManager {
         }
       },
       {
-        id: 'placeholder-upgrade-1',
-        name: 'Placeholder Upgrade 1',
-        description: 'This is a placeholder upgrade that will be implemented later. Coming soon!',
-        baseCost: 100,
+        id: 'unlock-tetris',
+        name: 'Unlock Tetris',
+        description: 'Unlocks access to the Tetris game! A new button will appear on the main screen. Use Sapphires as currency!',
+        baseCost: 50,
         maxPurchases: 1,
         unlockRequirement: 'boost-payout',
-        icon: '🔮',
-        effect: (_game: any, _purchaseCount: number) => {
-          // Placeholder effect
-          console.log('Placeholder upgrade 1 purchased!')
+        icon: '�',
+        effect: (game: any, _purchaseCount: number) => {
+          console.log('Tetris game unlocked!')
+          game.showTetrisButton()
         }
       },
       {
@@ -213,7 +213,7 @@ export class ShopManager {
       
       // Add upgrades based on what tier 2 upgrades have been purchased
       if (boostPayoutPurchased) {
-        thirdRowUpgrades.push('placeholder-upgrade-1', 'placeholder-upgrade-2')
+        thirdRowUpgrades.push('unlock-tetris', 'placeholder-upgrade-2')
       }
       if (healthBoostPurchased) {
         thirdRowUpgrades.push('placeholder-upgrade-3', 'unlock-snake')
@@ -356,21 +356,21 @@ export class ShopManager {
         
         // Boost Payout connections
         if (tier2State.boostPayoutPurchased) {
-          const placeholder1Node = skillTree.querySelector('[data-upgrade-id="placeholder-upgrade-1"]') as HTMLElement
+          const unlockTetrisNode = skillTree.querySelector('[data-upgrade-id="unlock-tetris"]') as HTMLElement
           const placeholder2Node = skillTree.querySelector('[data-upgrade-id="placeholder-upgrade-2"]') as HTMLElement
           
-          if (placeholder1Node && placeholder2Node) {
-            const placeholder1Rect = placeholder1Node.getBoundingClientRect()
+          if (unlockTetrisNode && placeholder2Node) {
+            const unlockTetrisRect = unlockTetrisNode.getBoundingClientRect()
             const placeholder2Rect = placeholder2Node.getBoundingClientRect()
             
             tier2ToTier3Connections.push(
               {
                 parentUpgradeId: 'boost-payout',
-                childUpgradeId: 'placeholder-upgrade-1',
+                childUpgradeId: 'unlock-tetris',
                 startX: boostPayoutRect.left - skillTreeRect.left + boostPayoutRect.width / 2,
                 startY: boostPayoutRect.top - skillTreeRect.top,
-                endX: placeholder1Rect.left - skillTreeRect.left + placeholder1Rect.width / 2,
-                endY: placeholder1Rect.top - skillTreeRect.top + placeholder1Rect.height
+                endX: unlockTetrisRect.left - skillTreeRect.left + unlockTetrisRect.width / 2,
+                endY: unlockTetrisRect.top - skillTreeRect.top + unlockTetrisRect.height
               },
               {
                 parentUpgradeId: 'boost-payout',

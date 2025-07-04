@@ -725,7 +725,7 @@ class MikecrementalGame {
 
     // Handle mouse clicks on the cube
     window.addEventListener('click', (event) => {
-      if (!this.state.gameStarted || this.state.isOnCooldown || this.state.isInShop || this.state.isInDegenDiamonds || this.state.isInDiamondShop || this.state.isInSnakeShop || this.state.isInSnakeGame) return
+      if (!this.state.gameStarted || this.state.isOnCooldown || this.state.isInShop || this.state.isInDegenDiamonds || this.state.isInDiamondShop || this.state.isInSnakeShop || this.state.isInTetrisShop || this.state.isInSnakeGame || this.state.isInTetrisGame) return
 
       this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1
       this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1
