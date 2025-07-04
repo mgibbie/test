@@ -9,6 +9,7 @@ import { TetrisShopManager } from './tetrisShop'
 import { TileShopManager } from './tileShop'
 import { LetterGame } from './letter-game'
 import { TetrisGame } from './tetris-game'
+import './mobile-hover-fix'
 
 class SnakeGame {
   private canvas: HTMLCanvasElement
@@ -2700,6 +2701,26 @@ class MikecrementalGame {
       this.ui.updateHealthBar(this.state.health, this.state.maxHealth);
       console.log(`Snake max health increased to ${this.state.maxHealth}`);
     }
+  }
+
+  /**
+   * Refresh mobile hover fix for dynamically added elements
+   * Call this when creating new interactive elements like shops
+   */
+  public refreshMobileHoverFix(): void {
+    if (window.mobileHoverFix) {
+      window.mobileHoverFix.refresh()
+    }
+  }
+
+  /**
+   * Check if current device is mobile/touch enabled
+   */
+  public isMobileDevice(): boolean {
+    if (window.mobileHoverFix) {
+      return window.mobileHoverFix.isTouchDevice()
+    }
+    return false
   }
 }
 
