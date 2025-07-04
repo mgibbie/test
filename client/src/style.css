@@ -2097,6 +2097,8 @@ body {
     scale: none !important;
   }
 
+
+
   /* Remove hover-specific background changes for containers */
   .health-bar-container:hover .health-bar-background {
     border-color: inherit !important;
@@ -2145,11 +2147,7 @@ body {
     transition: all 0.1s ease !important;
   }
 
-  /* Prevent flash effects during hover clearing */
-  .mobile-touch-clear {
-    /* Invisible but prevents flash */
-    transform: translateZ(0);
-  }
+
 
   /* Smooth transitions for mobile interactions */
   @media (hover: none) and (pointer: coarse) {

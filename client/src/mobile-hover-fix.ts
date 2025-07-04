@@ -24,10 +24,12 @@ class MobileHoverFix {
   private init(): void {
     if (!this.touchDevice) return
 
-    // Simple global touch handler
-    document.addEventListener('touchstart', this.handleTouch.bind(this), { passive: true })
+    // Global touch handlers for immediate clearing
+    document.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: true })
+    document.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: true })
+    document.addEventListener('touchcancel', this.handleTouchEnd.bind(this), { passive: true })
 
-    // Add event listeners for interactive elements
+    // Add element-specific listeners for better control
     this.addHoverListeners()
   }
 
@@ -67,30 +69,51 @@ class MobileHoverFix {
 
   private addElementListeners(element: Element): void {
     element.addEventListener('touchstart', (e) => {
+      // Add touch feedback and clear hover states
       element.classList.add('touch-active')
+      // Force the element out of hover state specifically
+      this.clearElementHover(element)
     }, { passive: true })
 
     element.addEventListener('touchend', (e) => {
       element.classList.remove('touch-active')
+      // Additional clearing after touch ends
+      setTimeout(() => {
+        this.clearElementHover(element)
+      }, 10)
     }, { passive: true })
 
     element.addEventListener('touchcancel', (e) => {
       element.classList.remove('touch-active')
+      this.clearElementHover(element)
     }, { passive: true })
   }
 
-  private handleTouch(e: TouchEvent): void {
-    // Clear any existing timeout
+  private clearElementHover(element: Element): void {
+    // Force element out of hover by temporarily disabling pointer events
+    const originalPointerEvents = (element as HTMLElement).style.pointerEvents
+    ;(element as HTMLElement).style.pointerEvents = 'none'
+    
+    // Restore pointer events on next frame
+    requestAnimationFrame(() => {
+      ;(element as HTMLElement).style.pointerEvents = originalPointerEvents
+    })
+  }
+
+  private handleTouchStart(e: TouchEvent): void {
+    // Immediately clear any stuck hover states
+    this.clearAllHoverStates()
+  }
+
+  private handleTouchEnd(e: TouchEvent): void {
+    // Clear any remaining hover states after touch ends
     if (this.clearTimeout) {
       clearTimeout(this.clearTimeout)
     }
-
-    // Debounced hover state clearing
+    
     this.clearTimeout = window.setTimeout(() => {
-      if (document.querySelectorAll(':hover').length > 0) {
-        this.clearAllHoverStates()
-      }
-    }, 100)
+      this.clearAllHoverStates()
+    }, 50)
   }
 
   private clearAllHoverStates(): void {
@@ -100,19 +123,39 @@ class MobileHoverFix {
       element.removeAttribute('data-hover')
     })
 
-    // Gentle approach: just add a temporary class to force CSS recalculation
-    document.body.classList.add('mobile-touch-clear')
-    // Remove it on next frame to trigger reflow without visual disruption
-    requestAnimationFrame(() => {
-      document.body.classList.remove('mobile-touch-clear')
+    // More effective approach: temporarily disable pointer events on hovered elements
+    const hoveredElements = document.querySelectorAll(':hover')
+    const originalStyles: Array<{element: HTMLElement, pointerEvents: string}> = []
+    
+    hoveredElements.forEach((element) => {
+      if (element instanceof HTMLElement) {
+        originalStyles.push({
+          element,
+          pointerEvents: element.style.pointerEvents
+        })
+        element.style.pointerEvents = 'none'
+      }
     })
+
+    // Restore pointer events on next frame to prevent white flash
+    if (originalStyles.length > 0) {
+      requestAnimationFrame(() => {
+        originalStyles.forEach(({element, pointerEvents}) => {
+          element.style.pointerEvents = pointerEvents
+        })
+      })
+    }
   }
 
   /**
    * Manually refresh hover listeners for dynamically added elements
    */
   public refresh(): void {
-    this.addHoverListeners()
+    if (this.touchDevice) {
+      this.addHoverListeners()
+      // Clear any existing hover states when refreshing
+      this.clearAllHoverStates()
+    }
   }
 
   /**
