@@ -6,7 +6,10 @@ interface PlayingCard {
   chipValue: number
   multiplier: number
   selected: boolean
-  enhanced?: boolean
+  played: boolean
+  enhancement?: 'foil' | 'holographic' | 'polychrome' | 'steel' | 'glass'
+  seal?: 'red' | 'blue' | 'gold' | 'purple'
+  edition?: 'negative' | 'polychrome'
 }
 
 interface PokerHand {
@@ -16,17 +19,40 @@ interface PokerHand {
   level: number
 }
 
+interface Joker {
+  id: string
+  name: string
+  description: string
+  rarity: 'common' | 'uncommon' | 'rare' | 'legendary'
+  chipBonus: number
+  multBonus: number
+  condition: string
+  cost: number
+}
+
+interface Blind {
+  name: string
+  description: string
+  chipReward: number
+  targetScore: number
+  effect?: string
+}
+
 interface BalatroState {
   deck: PlayingCard[]
   hand: PlayingCard[]
   selectedCards: PlayingCard[]
+  jokers: Joker[]
   currentRound: number
   handsLeft: number
   discardsLeft: number
   score: number
   targetScore: number
   spades: number
+  money: number
+  currentBlind: Blind
   pokerHands: Map<string, PokerHand>
+  animations: Array<{id: string, type: string, x: number, y: number, life: number}>
 }
 
 export class BalatroGame {
@@ -84,13 +110,22 @@ export class BalatroGame {
       deck: [],
       hand: [],
       selectedCards: [],
+      jokers: [],
       currentRound: 1,
       handsLeft: 4,
       discardsLeft: 3,
       score: 0,
       targetScore: 300,
       spades: 0,
-      pokerHands: new Map(Object.entries(this.POKER_HANDS).map(([name, hand]) => [name, { name, ...hand }]))
+      money: 4,
+      currentBlind: {
+        name: 'Small Blind',
+        description: 'A basic challenge to get you started',
+        chipReward: 30,
+        targetScore: 300
+      },
+      pokerHands: new Map(Object.entries(this.POKER_HANDS).map(([name, hand]) => [name, { name, ...hand }])),
+      animations: []
     }
   }
 
@@ -140,10 +175,12 @@ export class BalatroGame {
           suit,
           rank,
           value,
-          chipValue: Math.max(1, Math.floor(value / 2)),
+          chipValue: this.getBaseChipValue(rank),
           multiplier: 1,
           selected: false,
-          enhanced: false
+          played: false,
+          enhancement: Math.random() < 0.1 ? this.getRandomEnhancement() : undefined,
+          seal: Math.random() < 0.05 ? this.getRandomSeal() : undefined
         })
       }
     }
@@ -160,16 +197,152 @@ export class BalatroGame {
     return shuffled
   }
 
+  private getBaseChipValue(rank: string): number {
+    if (rank === 'A') return 11
+    if (['J', 'Q', 'K'].includes(rank)) return 10
+    return parseInt(rank) || 10
+  }
+
+  private getRandomEnhancement(): PlayingCard['enhancement'] {
+    const enhancements: PlayingCard['enhancement'][] = ['foil', 'holographic', 'polychrome', 'steel', 'glass']
+    return enhancements[Math.floor(Math.random() * enhancements.length)]
+  }
+
+  private getRandomSeal(): PlayingCard['seal'] {
+    const seals: PlayingCard['seal'][] = ['red', 'blue', 'gold', 'purple']
+    return seals[Math.floor(Math.random() * seals.length)]
+  }
+
+  private createRandomJoker(): Joker {
+    const jokers = [
+      {
+        name: 'Joker',
+        description: '+4 Mult',
+        rarity: 'common' as const,
+        chipBonus: 0,
+        multBonus: 4,
+        condition: 'always',
+        cost: 5
+      },
+      {
+        name: 'Greedy Joker',
+        description: '+3 Mult per $4 you have',
+        rarity: 'common' as const,
+        chipBonus: 0,
+        multBonus: 0,
+        condition: 'money',
+        cost: 6
+      },
+      {
+        name: 'Lusty Joker',
+        description: '+3 Mult per Heart in hand',
+        rarity: 'uncommon' as const,
+        chipBonus: 0,
+        multBonus: 0,
+        condition: 'hearts',
+        cost: 7
+      },
+      {
+        name: 'Wrathful Joker',
+        description: '+3 Mult per Spade in hand',
+        rarity: 'uncommon' as const,
+        chipBonus: 0,
+        multBonus: 0,
+        condition: 'spades',
+        cost: 7
+      },
+      {
+        name: 'Banner',
+        description: '+30 Chips per discard remaining',
+        rarity: 'common' as const,
+        chipBonus: 0,
+        multBonus: 0,
+        condition: 'discards',
+        cost: 5
+      }
+    ]
+    
+    const selectedJoker = jokers[Math.floor(Math.random() * jokers.length)]
+    return {
+      id: `joker-${Date.now()}-${Math.random()}`,
+      ...selectedJoker
+    }
+  }
+
+  private calculateJokerBonuses(): { chips: number, mult: number } {
+    let totalChips = 0
+    let totalMult = 0
+
+    this.gameState.jokers.forEach(joker => {
+      totalChips += joker.chipBonus
+      totalMult += joker.multBonus
+
+      // Apply conditional bonuses
+      switch (joker.condition) {
+        case 'money':
+          if (joker.name === 'Greedy Joker') {
+            totalMult += Math.floor(this.gameState.money / 4) * 3
+          }
+          break
+        case 'hearts':
+          if (joker.name === 'Lusty Joker') {
+            const hearts = this.gameState.hand.filter(card => card.suit === 'hearts').length
+            totalMult += hearts * 3
+          }
+          break
+        case 'spades':
+          if (joker.name === 'Wrathful Joker') {
+            const spades = this.gameState.hand.filter(card => card.suit === 'spades').length
+            totalMult += spades * 3
+          }
+          break
+        case 'discards':
+          if (joker.name === 'Banner') {
+            totalChips += this.gameState.discardsLeft * 30
+          }
+          break
+      }
+    })
+
+    return { chips: totalChips, mult: totalMult }
+  }
+
+  private addAnimation(type: string, x: number, y: number, text: string, life: number): void {
+    this.gameState.animations.push({
+      id: `anim-${Date.now()}-${Math.random()}`,
+      type,
+      x,
+      y,
+      life
+    })
+  }
+
+  private updateAnimations(): void {
+    this.gameState.animations = this.gameState.animations.filter(anim => {
+      anim.life--
+      return anim.life > 0
+    })
+  }
+
   private resetGame(): void {
     this.gameState.deck = this.createDeck()
     this.gameState.hand = []
     this.gameState.selectedCards = []
+    this.gameState.jokers = []
     this.gameState.currentRound = 1
     this.gameState.handsLeft = 4
     this.gameState.discardsLeft = 3
     this.gameState.score = 0
     this.gameState.targetScore = 300
     this.gameState.spades = 0
+    this.gameState.money = 4
+    this.gameState.animations = []
+    this.gameState.currentBlind = {
+      name: 'Small Blind',
+      description: 'A basic challenge to get you started',
+      chipReward: 30,
+      targetScore: 300
+    }
     
     this.drawHand()
     this.updateDisplay()
@@ -224,10 +397,13 @@ export class BalatroGame {
     if (this.gameState.selectedCards.length === 0 || this.gameState.handsLeft <= 0) return
     
     const handResult = this.evaluateHand(this.gameState.selectedCards)
-    const score = this.calculateScore(handResult, this.gameState.selectedCards)
+    const scoreResult = this.calculateScore(handResult, this.gameState.selectedCards)
     
-    this.gameState.score += score
+    this.gameState.score += scoreResult.score
     this.gameState.handsLeft--
+    
+    // Add visual feedback
+    this.addAnimation('score', 400, 300, scoreResult.breakdown, 120)
     
     // Remove played cards from hand
     this.gameState.selectedCards.forEach(selectedCard => {
@@ -334,21 +510,48 @@ export class BalatroGame {
     return true
   }
 
-  private calculateScore(handResult: { name: string, chips: number, multiplier: number }, cards: PlayingCard[]): number {
-    const cardChips = cards.reduce((sum, card) => sum + card.chipValue, 0)
-    const cardMultiplier = cards.reduce((sum, card) => sum + card.multiplier, 0)
+  private calculateScore(handResult: { name: string, chips: number, multiplier: number }, cards: PlayingCard[]): { score: number, breakdown: string } {
+    let cardChips = cards.reduce((sum, card) => {
+      let chips = card.chipValue
+      
+      // Apply enhancements
+      if (card.enhancement === 'steel') chips *= 1.5
+      if (card.enhancement === 'glass') chips *= 2
+      
+      return sum + Math.floor(chips)
+    }, 0)
     
-    const totalChips = handResult.chips + cardChips
-    const totalMultiplier = handResult.multiplier + cardMultiplier
+    let cardMultiplier = cards.reduce((sum, card) => {
+      let mult = card.multiplier
+      
+      // Apply enhancements
+      if (card.enhancement === 'foil') mult += 2
+      if (card.enhancement === 'holographic') mult += 10
+      if (card.enhancement === 'polychrome') mult *= 1.5
+      
+      return sum + mult
+    }, 0)
     
-    return totalChips * totalMultiplier
+    // Get joker bonuses
+    const jokerBonuses = this.calculateJokerBonuses()
+    
+    const totalChips = handResult.chips + cardChips + jokerBonuses.chips
+    const totalMultiplier = handResult.multiplier + cardMultiplier + jokerBonuses.mult
+    
+    const score = totalChips * Math.max(1, totalMultiplier)
+    
+    const breakdown = `${totalChips} chips × ${totalMultiplier} mult = ${score}`
+    
+    return { score, breakdown }
   }
 
   private completeRound(): void {
     this.gameState.spades += 10 // Award 10 spades per completed round
+    this.gameState.money += 4 // Award money for shop
     this.gameState.currentRound++
     this.gameState.handsLeft = 4
     this.gameState.discardsLeft = 3
+    this.gameState.score = 0
     this.gameState.targetScore = Math.floor(this.gameState.targetScore * 1.5) // Increase difficulty
     
     // Level up a random poker hand
@@ -359,7 +562,131 @@ export class BalatroGame {
     hand.chipValue = Math.floor(hand.chipValue * 1.2)
     hand.multiplier++
     
-    console.log(`Round ${this.gameState.currentRound - 1} completed! Earned 10 spades. ${randomHand} leveled up!`)
+    // Update blind
+    this.updateBlind()
+    
+    console.log(`Round ${this.gameState.currentRound - 1} completed! Earned 10 spades and $4. ${randomHand} leveled up!`)
+    
+    // Show shop for 3 seconds, then continue
+    this.showRoundCompleteMessage()
+  }
+
+  private updateBlind(): void {
+    const blinds = [
+      {
+        name: 'Small Blind',
+        description: 'A basic challenge to get you started',
+        chipReward: 30,
+        targetScore: 300
+      },
+      {
+        name: 'Big Blind',
+        description: 'Step it up a notch',
+        chipReward: 50,
+        targetScore: this.gameState.targetScore
+      },
+      {
+        name: 'Boss Blind',
+        description: 'The ultimate test of skill',
+        chipReward: 100,
+        targetScore: this.gameState.targetScore
+      }
+    ]
+    
+    const blindIndex = Math.min(this.gameState.currentRound - 1, blinds.length - 1)
+    this.gameState.currentBlind = blinds[blindIndex]
+    this.gameState.targetScore = this.gameState.currentBlind.targetScore
+  }
+
+  private showRoundCompleteMessage(): void {
+    // Create temporary overlay
+    const overlay = document.createElement('div')
+    overlay.style.position = 'fixed'
+    overlay.style.top = '50%'
+    overlay.style.left = '50%'
+    overlay.style.transform = 'translate(-50%, -50%)'
+    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.9)'
+    overlay.style.padding = '30px'
+    overlay.style.borderRadius = '15px'
+    overlay.style.border = '3px solid #4a90e2'
+    overlay.style.color = '#ffffff'
+    overlay.style.textAlign = 'center'
+    overlay.style.zIndex = '10000'
+    overlay.style.minWidth = '400px'
+
+    const title = document.createElement('h2')
+    title.textContent = `Round ${this.gameState.currentRound - 1} Complete!`
+    title.style.color = '#4a90e2'
+    title.style.marginBottom = '20px'
+
+    const rewards = document.createElement('p')
+    rewards.innerHTML = `Earned: ♠️ 10 spades, $4<br>Next: ${this.gameState.currentBlind.name}`
+    rewards.style.fontSize = '16px'
+    rewards.style.marginBottom = '20px'
+
+    const shopButton = document.createElement('button')
+    shopButton.textContent = 'Buy Joker ($5-$7)'
+    shopButton.style.backgroundColor = '#4a90e2'
+    shopButton.style.color = 'white'
+    shopButton.style.border = 'none'
+    shopButton.style.padding = '12px 24px'
+    shopButton.style.borderRadius = '8px'
+    shopButton.style.fontSize = '14px'
+    shopButton.style.cursor = 'pointer'
+    shopButton.style.marginRight = '10px'
+
+    const continueButton = document.createElement('button')
+    continueButton.textContent = 'Continue'
+    continueButton.style.backgroundColor = '#28a745'
+    continueButton.style.color = 'white'
+    continueButton.style.border = 'none'
+    continueButton.style.padding = '12px 24px'
+    continueButton.style.borderRadius = '8px'
+    continueButton.style.fontSize = '14px'
+    continueButton.style.cursor = 'pointer'
+
+    shopButton.addEventListener('click', () => {
+      this.buyRandomJoker()
+      overlay.remove()
+      this.drawHand()
+      this.updateDisplay()
+      this.draw()
+    })
+
+    continueButton.addEventListener('click', () => {
+      overlay.remove()
+      this.drawHand()
+      this.updateDisplay()
+      this.draw()
+    })
+
+    overlay.appendChild(title)
+    overlay.appendChild(rewards)
+    overlay.appendChild(shopButton)
+    overlay.appendChild(continueButton)
+    document.body.appendChild(overlay)
+
+    // Auto-continue after 10 seconds
+    setTimeout(() => {
+      if (overlay.parentNode) {
+        overlay.remove()
+        this.drawHand()
+        this.updateDisplay()
+        this.draw()
+      }
+    }, 10000)
+  }
+
+  private buyRandomJoker(): void {
+    const joker = this.createRandomJoker()
+    
+    if (this.gameState.money >= joker.cost) {
+      this.gameState.money -= joker.cost
+      this.gameState.jokers.push(joker)
+      console.log(`Bought ${joker.name} for $${joker.cost}!`)
+    } else {
+      console.log('Not enough money for joker!')
+    }
   }
 
   private gameOver(): void {
@@ -468,7 +795,7 @@ export class BalatroGame {
   }
 
   private updateDisplay(): void {
-    this.scoreDisplay.textContent = `Score: ${this.gameState.score}/${this.gameState.targetScore} | Round: ${this.gameState.currentRound} | Hands: ${this.gameState.handsLeft} | Discards: ${this.gameState.discardsLeft}`
+    this.scoreDisplay.textContent = `Score: ${this.gameState.score}/${this.gameState.targetScore} | Round: ${this.gameState.currentRound} | Hands: ${this.gameState.handsLeft} | Discards: ${this.gameState.discardsLeft} | Money: $${this.gameState.money}`
     
     const rewardCount = this.rewardDisplay.querySelector('span:last-child')
     if (rewardCount) {
@@ -477,19 +804,28 @@ export class BalatroGame {
   }
 
   private draw(): void {
-    // Clear canvas
-    this.ctx.fillStyle = '#1a1a2e'
+    // Clear canvas with animated gradient background
+    const gradient = this.ctx.createLinearGradient(0, 0, this.CANVAS_WIDTH, this.CANVAS_HEIGHT)
+    gradient.addColorStop(0, '#1a1a2e')
+    gradient.addColorStop(0.5, '#16213e')
+    gradient.addColorStop(1, '#0f3460')
+    this.ctx.fillStyle = gradient
     this.ctx.fillRect(0, 0, this.CANVAS_WIDTH, this.CANVAS_HEIGHT)
     
-    // Draw background pattern
-    this.ctx.fillStyle = '#0f3460'
-    for (let i = 0; i < this.CANVAS_WIDTH; i += 40) {
-      for (let j = 0; j < this.CANVAS_HEIGHT; j += 40) {
-        if ((i + j) % 80 === 0) {
-          this.ctx.fillRect(i, j, 20, 20)
+    // Draw subtle background pattern
+    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.02)'
+    for (let i = 0; i < this.CANVAS_WIDTH; i += 60) {
+      for (let j = 0; j < this.CANVAS_HEIGHT; j += 60) {
+        if ((i + j) % 120 === 0) {
+          this.ctx.fillRect(i, j, 30, 30)
         }
       }
     }
+    
+    // Draw UI elements
+    this.drawBlindInfo()
+    this.drawJokers()
+    this.drawPokerHandsLegend()
     
     // Draw hand
     this.drawHandCards()
@@ -499,8 +835,9 @@ export class BalatroGame {
       this.drawHandInfo()
     }
     
-    // Draw poker hands legend
-    this.drawPokerHandsLegend()
+    // Update and draw animations
+    this.updateAnimations()
+    this.drawAnimations()
   }
 
   private drawHandCards(): void {
@@ -517,14 +854,59 @@ export class BalatroGame {
   }
 
   private drawCard(card: PlayingCard, x: number, y: number): void {
+    // Enhancement effects
+    if (card.enhancement === 'foil') {
+      this.ctx.fillStyle = 'linear-gradient(45deg, #silver, #lightgray)'
+      this.ctx.fillRect(x - 2, y - 2, this.CARD_WIDTH + 4, this.CARD_HEIGHT + 4)
+    } else if (card.enhancement === 'holographic') {
+      this.ctx.fillStyle = '#ff00ff'
+      this.ctx.fillRect(x - 1, y - 1, this.CARD_WIDTH + 2, this.CARD_HEIGHT + 2)
+    } else if (card.enhancement === 'polychrome') {
+      // Rainbow effect simulation
+      const gradient = this.ctx.createLinearGradient(x, y, x + this.CARD_WIDTH, y + this.CARD_HEIGHT)
+      gradient.addColorStop(0, '#ff0000')
+      gradient.addColorStop(0.5, '#00ff00')
+      gradient.addColorStop(1, '#0000ff')
+      this.ctx.fillStyle = gradient
+      this.ctx.fillRect(x - 1, y - 1, this.CARD_WIDTH + 2, this.CARD_HEIGHT + 2)
+    }
+    
     // Card background
-    this.ctx.fillStyle = card.selected ? '#ffff88' : '#ffffff'
+    let cardBg = '#ffffff'
+    if (card.enhancement === 'steel') cardBg = '#e6e6e6'
+    if (card.enhancement === 'glass') cardBg = '#f0f8ff'
+    if (card.selected) cardBg = '#ffff88'
+    
+    this.ctx.fillStyle = cardBg
     this.ctx.fillRect(x, y, this.CARD_WIDTH, this.CARD_HEIGHT)
     
-    // Card border
-    this.ctx.strokeStyle = card.selected ? '#ff8800' : '#000000'
-    this.ctx.lineWidth = card.selected ? 3 : 1
+    // Card border with enhancement colors
+    let borderColor = '#000000'
+    let borderWidth = 1
+    
+    if (card.selected) {
+      borderColor = '#ff8800'
+      borderWidth = 3
+    } else if (card.enhancement) {
+      borderColor = '#4a90e2'
+      borderWidth = 2
+    }
+    
+    this.ctx.strokeStyle = borderColor
+    this.ctx.lineWidth = borderWidth
     this.ctx.strokeRect(x, y, this.CARD_WIDTH, this.CARD_HEIGHT)
+    
+    // Seal indicator (top-right corner)
+    if (card.seal) {
+      const sealColors = {
+        red: '#ff4444',
+        blue: '#4444ff',
+        gold: '#ffaa00',
+        purple: '#aa44ff'
+      }
+      this.ctx.fillStyle = sealColors[card.seal]
+      this.ctx.fillRect(x + this.CARD_WIDTH - 8, y + 2, 6, 6)
+    }
     
     // Suit color
     const suitColor = (card.suit === 'hearts' || card.suit === 'diamonds') ? '#cc0000' : '#000000'
@@ -538,44 +920,195 @@ export class BalatroGame {
     const suitSymbol = card.suit === 'hearts' ? '♥' : 
                       card.suit === 'diamonds' ? '♦' : 
                       card.suit === 'clubs' ? '♣' : '♠'
-    this.ctx.font = '16px Arial'
+    this.ctx.font = '18px Arial'
     this.ctx.fillText(suitSymbol, x + 5, y + 35)
     
-    // Draw chip value
+    // Draw chip value with enhancement indicators
     this.ctx.fillStyle = '#0066cc'
-    this.ctx.font = '10px Arial'
-    this.ctx.fillText(`${card.chipValue}`, x + 5, y + this.CARD_HEIGHT - 5)
+    this.ctx.font = 'bold 10px Arial'
+    let chipText = `${card.chipValue}`
+    if (card.enhancement === 'steel') chipText += ' (Steel)'
+    if (card.enhancement === 'glass') chipText += ' (Glass)'
+    this.ctx.fillText(chipText, x + 5, y + this.CARD_HEIGHT - 15)
+    
+    // Draw multiplier if > 1
+    if (card.multiplier > 1) {
+      this.ctx.fillStyle = '#cc6600'
+      this.ctx.font = 'bold 9px Arial'
+      this.ctx.fillText(`x${card.multiplier}`, x + 5, y + this.CARD_HEIGHT - 5)
+    }
+    
+    // Enhancement text overlay
+    if (card.enhancement) {
+      this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
+      this.ctx.font = '8px Arial'
+      const enhancementText = card.enhancement.toUpperCase()
+      this.ctx.fillText(enhancementText, x + 2, y + this.CARD_HEIGHT - 25)
+    }
   }
 
   private drawHandInfo(): void {
     const handResult = this.evaluateHand(this.gameState.selectedCards)
-    const score = this.calculateScore(handResult, this.gameState.selectedCards)
+    const scoreResult = this.calculateScore(handResult, this.gameState.selectedCards)
     
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
-    this.ctx.fillRect(250, 350, 300, 80)
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.9)'
+    this.ctx.fillRect(250, 350, 350, 100)
+    
+    // Add border and glow effect
+    this.ctx.strokeStyle = '#4a90e2'
+    this.ctx.lineWidth = 2
+    this.ctx.strokeRect(250, 350, 350, 100)
     
     this.ctx.fillStyle = '#ffffff'
-    this.ctx.font = 'bold 16px Arial'
-    this.ctx.fillText(`Hand: ${handResult.name}`, 260, 370)
+    this.ctx.font = 'bold 18px Arial'
+    this.ctx.fillText(`Hand: ${handResult.name}`, 260, 375)
     
     this.ctx.font = '14px Arial'
-    this.ctx.fillText(`Chips: ${handResult.chips} | Multiplier: ${handResult.multiplier}`, 260, 390)
-    this.ctx.fillText(`Score: ${score}`, 260, 410)
+    this.ctx.fillText(`${scoreResult.breakdown}`, 260, 395)
+    
+    this.ctx.font = 'bold 16px Arial'
+    this.ctx.fillStyle = '#4a90e2'
+    this.ctx.fillText(`Total Score: ${scoreResult.score}`, 260, 420)
+    
+    // Draw joker bonuses if any
+    if (this.gameState.jokers.length > 0) {
+      const jokerBonuses = this.calculateJokerBonuses()
+      this.ctx.font = '12px Arial'
+      this.ctx.fillStyle = '#ffaa00'
+      this.ctx.fillText(`Joker Bonus: +${jokerBonuses.chips} chips, +${jokerBonuses.mult} mult`, 260, 440)
+    }
   }
 
   private drawPokerHandsLegend(): void {
-    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
-    this.ctx.fillRect(10, 10, 200, 300)
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.9)'
+    this.ctx.fillRect(10, 10, 220, 320)
+    
+    // Border
+    this.ctx.strokeStyle = '#4a90e2'
+    this.ctx.lineWidth = 2
+    this.ctx.strokeRect(10, 10, 220, 320)
     
     this.ctx.fillStyle = '#ffffff'
-    this.ctx.font = 'bold 14px Arial'
-    this.ctx.fillText('Poker Hands:', 20, 30)
+    this.ctx.font = 'bold 16px Arial'
+    this.ctx.fillText('Poker Hands:', 20, 35)
     
-    let y = 50
-    this.ctx.font = '10px Arial'
+    let y = 55
+    this.ctx.font = '11px Arial'
     Array.from(this.gameState.pokerHands.entries()).forEach(([name, hand]) => {
-      this.ctx.fillText(`${name}: ${hand.chipValue}x${hand.multiplier} (Lv.${hand.level})`, 20, y)
-      y += 15
+      // Hand name with level indicator
+      this.ctx.fillStyle = hand.level > 1 ? '#ffaa00' : '#ffffff'
+      this.ctx.fillText(`${name} (Lv.${hand.level})`, 20, y)
+      
+      // Stats
+      this.ctx.fillStyle = '#aaaaaa'
+      this.ctx.font = '10px Arial'
+      this.ctx.fillText(`${hand.chipValue} chips × ${hand.multiplier} mult`, 25, y + 12)
+      
+      this.ctx.font = '11px Arial'
+      y += 28
+    })
+  }
+
+  private drawJokers(): void {
+    if (this.gameState.jokers.length === 0) return
+    
+    const jokerY = 50
+    const jokerSpacing = 120
+    
+    this.gameState.jokers.forEach((joker, index) => {
+      const x = 50 + index * jokerSpacing
+      this.drawJoker(joker, x, jokerY)
+    })
+  }
+
+  private drawJoker(joker: Joker, x: number, y: number): void {
+    const width = 100
+    const height = 60
+    
+    // Rarity colors
+    const rarityColors = {
+      common: '#888888',
+      uncommon: '#4a90e2',
+      rare: '#9b59b6',
+      legendary: '#f39c12'
+    }
+    
+    // Background
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
+    this.ctx.fillRect(x, y, width, height)
+    
+    // Border with rarity color
+    this.ctx.strokeStyle = rarityColors[joker.rarity]
+    this.ctx.lineWidth = 2
+    this.ctx.strokeRect(x, y, width, height)
+    
+    // Joker name
+    this.ctx.fillStyle = '#ffffff'
+    this.ctx.font = 'bold 10px Arial'
+    this.ctx.fillText(joker.name, x + 5, y + 15)
+    
+    // Description
+    this.ctx.font = '8px Arial'
+    this.ctx.fillStyle = '#cccccc'
+    const words = joker.description.split(' ')
+    let line = ''
+    let lineY = y + 28
+    
+    words.forEach(word => {
+      const testLine = line + word + ' '
+      const metrics = this.ctx.measureText(testLine)
+      if (metrics.width > width - 10) {
+        this.ctx.fillText(line, x + 5, lineY)
+        line = word + ' '
+        lineY += 10
+      } else {
+        line = testLine
+      }
+    })
+    this.ctx.fillText(line, x + 5, lineY)
+  }
+
+  private drawBlindInfo(): void {
+    const blind = this.gameState.currentBlind
+    
+    this.ctx.fillStyle = 'rgba(0, 0, 0, 0.9)'
+    this.ctx.fillRect(250, 10, 300, 80)
+    
+    this.ctx.strokeStyle = '#ff4444'
+    this.ctx.lineWidth = 2
+    this.ctx.strokeRect(250, 10, 300, 80)
+    
+    this.ctx.fillStyle = '#ffffff'
+    this.ctx.font = 'bold 16px Arial'
+    this.ctx.fillText(blind.name, 260, 30)
+    
+    this.ctx.font = '12px Arial'
+    this.ctx.fillText(blind.description, 260, 50)
+    
+    this.ctx.font = 'bold 14px Arial'
+    this.ctx.fillStyle = '#4a90e2'
+    this.ctx.fillText(`Target: ${this.gameState.targetScore}`, 260, 70)
+    
+    // Progress bar
+    const progress = Math.min(this.gameState.score / this.gameState.targetScore, 1)
+    this.ctx.fillStyle = '#333333'
+    this.ctx.fillRect(400, 60, 140, 8)
+    this.ctx.fillStyle = '#4a90e2'
+    this.ctx.fillRect(400, 60, 140 * progress, 8)
+  }
+
+  private drawAnimations(): void {
+    this.gameState.animations.forEach(anim => {
+      this.ctx.save()
+      this.ctx.globalAlpha = anim.life / 120
+      
+      if (anim.type === 'score') {
+        this.ctx.fillStyle = '#ffaa00'
+        this.ctx.font = 'bold 16px Arial'
+        this.ctx.fillText('💰', anim.x, anim.y - (120 - anim.life))
+      }
+      
+      this.ctx.restore()
     })
   }
 
