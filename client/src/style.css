@@ -2763,4 +2763,114 @@ body {
     padding: 10px 20px;
     font-size: 0.9rem;
   }
+}
+
+/* D-pad styles for mobile snake game */
+.snake-dpad {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  width: 140px;
+  height: 140px;
+  z-index: 1000;
+}
+
+.snake-dpad.visible {
+  display: block;
+}
+
+.dpad-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 50%;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(0, 255, 136, 0.5);
+}
+
+.dpad-button {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+  border: 2px solid #ffffff;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  color: #001a00;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 255, 136, 0.3);
+  transition: all 0.1s ease;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.dpad-button:active,
+.dpad-button.pressed {
+  transform: scale(0.9);
+  box-shadow: 0 2px 8px rgba(0, 255, 136, 0.5);
+  background: linear-gradient(135deg, #00cc6a 0%, #00aa55 100%);
+}
+
+.dpad-up {
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.dpad-down {
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.dpad-left {
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.dpad-right {
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Center circle for d-pad */
+.dpad-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 30px;
+  height: 30px;
+  background: rgba(0, 255, 136, 0.2);
+  border-radius: 50%;
+  border: 1px solid rgba(0, 255, 136, 0.3);
+}
+
+/* Show d-pad only on mobile when snake game is active */
+@media (hover: none) and (pointer: coarse) {
+  .snake-game-container .snake-dpad {
+    display: block;
+  }
+}
+
+/* Ensure proper button spacing on mobile */
+@media (max-width: 768px) {
+  .snake-game-container .snake-shop-button {
+    bottom: 180px; /* Move up to avoid d-pad overlap */
+  }
+  
+  .snake-game-container .snake-back-button {
+    bottom: 180px; /* Move up to avoid d-pad overlap */
+  }
 } 

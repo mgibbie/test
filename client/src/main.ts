@@ -41,6 +41,7 @@ class SnakeGame {
   private readonly CANVAS_SIZE = 400
   private readonly GAME_SPEED = 150
   private wrapper: HTMLElement | null = null;
+  private dpadElement: HTMLElement | null = null;
 
   constructor(canvas: HTMLCanvasElement, scoreDisplay: HTMLElement, rewardDisplay: HTMLElement, startButton: HTMLElement, restartButton: HTMLElement, gameInstance: any, healthDisplay: HTMLElement, wrapper: HTMLElement | null) {
     this.canvas = canvas
@@ -55,6 +56,7 @@ class SnakeGame {
     
     this.loadEmeraldImage()
     this.setupControls()
+    this.setupDpad()
     this.resetGame()
     this.createLivesDisplay()
   }
@@ -101,6 +103,105 @@ class SnakeGame {
           break
       }
     })
+  }
+
+  private setupDpad(): void {
+    // Only create D-pad on mobile devices
+    if (!this.gameInstance.isMobileDevice()) {
+      return
+    }
+
+    // Create D-pad container
+    this.dpadElement = document.createElement('div')
+    this.dpadElement.className = 'snake-dpad'
+    
+    const dpadContainer = document.createElement('div')
+    dpadContainer.className = 'dpad-container'
+    
+    // Create center circle
+    const centerCircle = document.createElement('div')
+    centerCircle.className = 'dpad-center'
+    dpadContainer.appendChild(centerCircle)
+    
+    // Create direction buttons
+    const directions = [
+      { class: 'dpad-up', text: '↑', direction: { x: 0, y: -1 } },
+      { class: 'dpad-down', text: '↓', direction: { x: 0, y: 1 } },
+      { class: 'dpad-left', text: '←', direction: { x: -1, y: 0 } },
+      { class: 'dpad-right', text: '→', direction: { x: 1, y: 0 } }
+    ]
+    
+    directions.forEach(dir => {
+      const button = document.createElement('div')
+      button.className = `dpad-button ${dir.class}`
+      button.textContent = dir.text
+      button.setAttribute('data-direction', JSON.stringify(dir.direction))
+      
+      // Add touch event listeners
+      button.addEventListener('touchstart', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        
+        if (!this.isGameRunning) return
+        
+        const newDirection = JSON.parse(button.getAttribute('data-direction') || '{}')
+        
+        // Check if the direction is valid (can't reverse into itself)
+        if (newDirection.x !== 0 && this.direction.x === 0) {
+          this.nextDirection = newDirection
+        } else if (newDirection.y !== 0 && this.direction.y === 0) {
+          this.nextDirection = newDirection
+        }
+        
+        // Add visual feedback
+        button.classList.add('pressed')
+        
+        // Remove pressed state after animation
+        setTimeout(() => {
+          button.classList.remove('pressed')
+        }, 200)
+      }, { passive: false })
+      
+      // Also add click event for testing on non-mobile
+      button.addEventListener('click', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        
+        if (!this.isGameRunning) return
+        
+        const newDirection = JSON.parse(button.getAttribute('data-direction') || '{}')
+        
+        // Check if the direction is valid (can't reverse into itself)
+        if (newDirection.x !== 0 && this.direction.x === 0) {
+          this.nextDirection = newDirection
+        } else if (newDirection.y !== 0 && this.direction.y === 0) {
+          this.nextDirection = newDirection
+        }
+      })
+      
+      dpadContainer.appendChild(button)
+    })
+    
+    this.dpadElement.appendChild(dpadContainer)
+    
+    // Add to wrapper if available, otherwise to document body
+    if (this.wrapper) {
+      this.wrapper.appendChild(this.dpadElement)
+    } else {
+      document.body.appendChild(this.dpadElement)
+    }
+  }
+
+  private showDpad(): void {
+    if (this.dpadElement) {
+      this.dpadElement.classList.add('visible')
+    }
+  }
+
+  private hideDpad(): void {
+    if (this.dpadElement) {
+      this.dpadElement.classList.remove('visible')
+    }
   }
 
   private resetGame(): void {
@@ -316,6 +417,9 @@ class SnakeGame {
       this.gameLoop = null
       console.log('🛑 Game loop stopped')
     }
+    
+    // Hide D-pad when game over
+    this.hideDpad()
 
     console.log('❤️ Lives check - livesLeft:', this.livesLeft, 'condition (livesLeft > 1):', this.livesLeft > 1)
     // Check for extra lives first - if livesLeft > 1, use an extra life
@@ -335,6 +439,10 @@ class SnakeGame {
       
       // Restart the game loop since we're continuing
       this.isGameRunning = true;
+      
+      // Show D-pad again when continuing
+      this.showDpad()
+      
       this.gameLoop = setInterval(() => {
         this.update()
       }, this.GAME_SPEED)
@@ -515,6 +623,9 @@ class SnakeGame {
     this.startButton.style.display = 'none'
     this.restartButton.style.display = 'none'
     
+    // Show D-pad on mobile
+    this.showDpad()
+    
     this.gameLoop = setInterval(() => {
       this.update()
     }, this.GAME_SPEED)
@@ -542,6 +653,9 @@ class SnakeGame {
     }
     this.startButton.style.display = 'block'
     this.restartButton.style.display = 'none'
+    
+    // Hide D-pad when paused
+    this.hideDpad()
   }
 
   public createLivesDisplay(): void {

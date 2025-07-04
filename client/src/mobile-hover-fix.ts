@@ -6,6 +6,8 @@
 class MobileHoverFix {
   private touchDevice: boolean = false
   private clearTimeout: number | null = null
+  private lastTouchTime: number = 0
+  private touchStartElement: Element | null = null
 
   constructor() {
     this.detectTouchDevice()
@@ -25,9 +27,14 @@ class MobileHoverFix {
     if (!this.touchDevice) return
 
     // Global touch handlers for immediate clearing
-    document.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: true })
-    document.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: true })
-    document.addEventListener('touchcancel', this.handleTouchEnd.bind(this), { passive: true })
+    document.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false })
+    document.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: false })
+    document.addEventListener('touchcancel', this.handleTouchEnd.bind(this), { passive: false })
+    document.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: true })
+
+    // More aggressive clearing on scroll
+    document.addEventListener('scroll', this.clearAllHoverStates.bind(this), { passive: true })
+    window.addEventListener('orientationchange', this.clearAllHoverStates.bind(this))
 
     // Add element-specific listeners for better control
     this.addHoverListeners()
@@ -56,7 +63,13 @@ class MobileHoverFix {
       '.new-hand-button',
       '.clear-button',
       '.letter-back-button',
-      '.wager-start-button'
+      '.wager-start-button',
+      '.degen-diamonds-button',
+      '.letter-game-button',
+      '.snake-button',
+      '.tile-shop-button',
+      '.tetris-button',
+      '.balatro-button'
     ]
 
     selectors.forEach(selector => {
@@ -69,30 +82,63 @@ class MobileHoverFix {
 
   private addElementListeners(element: Element): void {
     element.addEventListener('touchstart', (e) => {
+      this.lastTouchTime = Date.now()
+      this.touchStartElement = element
       // Add touch feedback and clear hover states
       element.classList.add('touch-active')
       // Force the element out of hover state specifically
       this.clearElementHover(element)
-    }, { passive: true })
+      
+      // Prevent any existing hover states
+      this.clearAllHoverStates()
+    }, { passive: false })
 
     element.addEventListener('touchend', (e) => {
+      const touchEndTime = Date.now()
+      const touchDuration = touchEndTime - this.lastTouchTime
+      
+      // Only process if this is a quick tap (not a long press or scroll)
+      if (touchDuration < 500 && this.touchStartElement === element) {
+        // Simulate click for shop buttons that might not be responding
+        if (element.classList.contains('shop-button') || 
+            element.classList.contains('snake-shop-button') ||
+            element.classList.contains('diamond-shop-button')) {
+          // Force a click event
+          element.dispatchEvent(new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            view: window
+          }))
+        }
+      }
+      
       element.classList.remove('touch-active')
+      
       // Additional clearing after touch ends
       setTimeout(() => {
         this.clearElementHover(element)
-      }, 10)
-    }, { passive: true })
+        this.clearAllHoverStates()
+      }, 50)
+      
+      this.touchStartElement = null
+    }, { passive: false })
 
     element.addEventListener('touchcancel', (e) => {
       element.classList.remove('touch-active')
       this.clearElementHover(element)
-    }, { passive: true })
+      this.clearAllHoverStates()
+      this.touchStartElement = null
+    }, { passive: false })
   }
 
   private clearElementHover(element: Element): void {
     // Force element out of hover by temporarily disabling pointer events
     const originalPointerEvents = (element as HTMLElement).style.pointerEvents
     ;(element as HTMLElement).style.pointerEvents = 'none'
+    
+    // Also remove any hover classes
+    element.classList.remove('hover')
+    element.removeAttribute('data-hover')
     
     // Restore pointer events on next frame
     requestAnimationFrame(() => {
@@ -105,6 +151,11 @@ class MobileHoverFix {
     this.clearAllHoverStates()
   }
 
+  private handleTouchMove(e: TouchEvent): void {
+    // Clear hover states when scrolling/moving
+    this.clearAllHoverStates()
+  }
+
   private handleTouchEnd(e: TouchEvent): void {
     // Clear any remaining hover states after touch ends
     if (this.clearTimeout) {
@@ -113,7 +164,7 @@ class MobileHoverFix {
     
     this.clearTimeout = window.setTimeout(() => {
       this.clearAllHoverStates()
-    }, 50)
+    }, 100)
   }
 
   private clearAllHoverStates(): void {
@@ -123,7 +174,7 @@ class MobileHoverFix {
       element.removeAttribute('data-hover')
     })
 
-    // More effective approach: temporarily disable pointer events on hovered elements
+    // More aggressive approach: Clear all CSS :hover states
     const hoveredElements = document.querySelectorAll(':hover')
     const originalStyles: Array<{element: HTMLElement, pointerEvents: string}> = []
     
@@ -134,10 +185,15 @@ class MobileHoverFix {
           pointerEvents: element.style.pointerEvents
         })
         element.style.pointerEvents = 'none'
+        
+        // Also blur any focused elements
+        if (element === document.activeElement) {
+          (element as HTMLElement).blur()
+        }
       }
     })
 
-    // Restore pointer events on next frame to prevent white flash
+    // Restore pointer events immediately to prevent white flash
     if (originalStyles.length > 0) {
       requestAnimationFrame(() => {
         originalStyles.forEach(({element, pointerEvents}) => {
@@ -145,6 +201,9 @@ class MobileHoverFix {
         })
       })
     }
+
+    // Force redraw by triggering a reflow
+    document.body.offsetHeight
   }
 
   /**
@@ -172,6 +231,15 @@ class MobileHoverFix {
    */
   public isTouchDevice(): boolean {
     return this.touchDevice
+  }
+
+  /**
+   * Force clear all hover states (useful for shop transitions)
+   */
+  public forceCleanup(): void {
+    if (this.touchDevice) {
+      this.clearAllHoverStates()
+    }
   }
 }
 

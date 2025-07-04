@@ -618,6 +618,9 @@ export class ShopManager {
       elements.gameView.style.display = 'none'
     }
     
+    // Clear any stuck hover states before opening shop
+    this.gameInstance.refreshMobileHoverFix()
+    
     // Refresh all currency displays to ensure they're visible on this screen
     this.gameInstance.refreshAllCurrencyDisplays()
     
@@ -626,6 +629,11 @@ export class ShopManager {
     
     this.shopElement.style.display = 'block'
     this.gameInstance.setShopState(true)
+    
+    // Add mobile hover fix to any new elements
+    setTimeout(() => {
+      this.gameInstance.refreshMobileHoverFix()
+    }, 100)
   }
 
   private ensureCurrencyElementsVisible(): void {
@@ -669,12 +677,20 @@ export class ShopManager {
   }
 
   closeShop(): void {
+    // Clear any stuck hover states before closing shop
+    this.gameInstance.refreshMobileHoverFix()
+    
     this.shopElement.style.display = 'none'
     const elements = this.ui.getElements()
     if (elements.gameView) {
       elements.gameView.style.display = 'block'
     }
     this.gameInstance.setShopState(false)
+    
+    // Force final cleanup of hover states
+    setTimeout(() => {
+      this.gameInstance.refreshMobileHoverFix()
+    }, 50)
   }
 
   hasUpgrade(upgradeId: string): boolean {
