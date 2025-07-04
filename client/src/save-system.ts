@@ -1,3 +1,13 @@
+interface UpgradeData {
+  purchased: boolean
+  purchaseCount: number
+  maxed: boolean
+}
+
+interface Shop {
+  getUpgrades(): Map<string, UpgradeData>
+}
+
 export interface GameSaveData {
   version: string
   currencies: {
@@ -8,11 +18,11 @@ export interface GameSaveData {
     tiles: number
   }
   upgrades: {
-    mainShop: Record<string, { purchased: boolean, purchaseCount: number, maxed: boolean }>
-    diamondShop: Record<string, { purchased: boolean, purchaseCount: number, maxed: boolean }>
-    snakeShop: Record<string, { purchased: boolean, purchaseCount: number, maxed: boolean }>
-    tetrisShop: Record<string, { purchased: boolean, purchaseCount: number, maxed: boolean }>
-    tileShop: Record<string, { purchased: boolean, purchaseCount: number, maxed: boolean }>
+    mainShop: Record<string, UpgradeData>
+    diamondShop: Record<string, UpgradeData>
+    snakeShop: Record<string, UpgradeData>
+    tetrisShop: Record<string, UpgradeData>
+    tileShop: Record<string, UpgradeData>
   }
   gameState: {
     health: number
@@ -117,14 +127,14 @@ export class SaveSystem {
     }
   }
 
-  private migrateSaveData(oldData: any): void {
+  private migrateSaveData(oldData: Partial<GameSaveData>): void {
     // Handle migration between save versions
     // For now, just merge with defaults for missing properties
-    this.saveData = this.deepMerge(this.getDefaultSaveData(), oldData)
+    this.saveData = this.deepMerge(this.getDefaultSaveData(), oldData as Record<string, any>) as GameSaveData
     this.saveData.version = SaveSystem.CURRENT_VERSION
   }
 
-  private deepMerge(target: any, source: any): any {
+  private deepMerge(target: Record<string, any>, source: Record<string, any>): Record<string, any> {
     const result = { ...target }
     
     for (const key in source) {
@@ -172,9 +182,9 @@ export class SaveSystem {
     this.gameInstance.refreshAllCurrencyDisplays()
   }
 
-  private applyUpgrades(shop: any, upgradeData: Record<string, any>): void {
+  private applyUpgrades(shop: Shop, upgradeData: Record<string, UpgradeData>): void {
     const upgrades = shop.getUpgrades()
-    Object.entries(upgradeData).forEach(([upgradeId, data]: [string, any]) => {
+    Object.entries(upgradeData).forEach(([upgradeId, data]: [string, UpgradeData]) => {
       if (upgrades.has(upgradeId)) {
         upgrades.set(upgradeId, data)
       }
@@ -196,7 +206,7 @@ export class SaveSystem {
     const currencyManager = this.gameInstance.currencyManager
     if (currencyManager) {
       const currencies = currencyManager.getAllCurrencies()
-      currencies.forEach((currency, type) => {
+      currencies.forEach((currency: { amount: number }, type: string) => {
         if (this.saveData.currencies.hasOwnProperty(type)) {
           (this.saveData.currencies as any)[type] = currency.amount
         }
@@ -237,10 +247,10 @@ export class SaveSystem {
     this.saveData.statistics.lastPlayTime = Date.now()
   }
 
-  private serializeUpgrades(shop: any): Record<string, any> {
-    const result: Record<string, any> = {}
+  private serializeUpgrades(shop: Shop): Record<string, UpgradeData> {
+    const result: Record<string, UpgradeData> = {}
     const upgrades = shop.getUpgrades()
-    upgrades.forEach((data, upgradeId) => {
+    upgrades.forEach((data: UpgradeData, upgradeId: string) => {
       result[upgradeId] = {
         purchased: data.purchased,
         purchaseCount: data.purchaseCount,
@@ -252,9 +262,9 @@ export class SaveSystem {
 
   public incrementStatistic(stat: keyof GameSaveData['statistics'], amount: number = 1): void {
     if (stat === 'lastPlayTime' || stat === 'firstPlayTime') {
-      (this.saveData.statistics as any)[stat] = Date.now()
+      this.saveData.statistics[stat] = Date.now()
     } else {
-      (this.saveData.statistics as any)[stat] += amount
+      this.saveData.statistics[stat] = (this.saveData.statistics[stat] as number) + amount
     }
   }
 
@@ -304,15 +314,15 @@ export class SaveSystem {
     }
   }
 
-  private validateSaveData(data: any): boolean {
+  private validateSaveData(data: unknown): data is GameSaveData {
     return (
-      data &&
+      data != null &&
       typeof data === 'object' &&
-      data.version &&
-      data.currencies &&
-      data.upgrades &&
-      data.gameState &&
-      data.statistics
+      'version' in data &&
+      'currencies' in data &&
+      'upgrades' in data &&
+      'gameState' in data &&
+      'statistics' in data
     )
   }
 
