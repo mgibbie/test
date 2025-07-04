@@ -3,6 +3,7 @@ export interface GameState {
   diamonds: number
   emeralds: number
   sapphires: number
+  spades: number
   tiles: number
   health: number
   maxHealth: number
@@ -20,6 +21,8 @@ export interface GameState {
   isInLetterGameLaunch: boolean
   isInLetterGame: boolean
   isInTetrisGame: boolean
+  isInLetterShop: boolean
+  isInBalatroGame: boolean
   bombSliderUnlocked: boolean
   bombCount: number
   isInSnakeGame: boolean
@@ -27,6 +30,7 @@ export interface GameState {
   discardZoneUnlocked: boolean
   letterGameUnlocked: boolean
   tetrisGameUnlocked: boolean
+  balatroGameUnlocked: boolean
 }
 
 export interface UpgradeDefinition {
@@ -46,6 +50,7 @@ export interface UIElements {
   diamondsCounter: HTMLElement
   emeraldsCounter: HTMLElement
   sapphiresCounter: HTMLElement
+  spadesCounter: HTMLElement
   tilesCounter: HTMLElement
   healthBarContainer: HTMLElement
   healthBarFill: HTMLElement

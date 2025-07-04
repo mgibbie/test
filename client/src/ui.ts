@@ -115,6 +115,19 @@ export class UIManager {
     return sapphiresCounter
   }
 
+  createSpadesCounter(): HTMLElement {
+    const spadesCounter = document.createElement('div')
+    spadesCounter.className = 'spades-counter'
+    spadesCounter.textContent = '♠️ 0'
+    spadesCounter.style.display = 'none' // Initially hidden
+    
+    const app = document.querySelector<HTMLDivElement>('#app')!
+    app.appendChild(spadesCounter)
+    
+    this.elements.spadesCounter = spadesCounter
+    return spadesCounter
+  }
+
   createTilesCounter(): HTMLElement {
     const tilesCounter = document.createElement('div')
     tilesCounter.className = 'tiles-counter'
@@ -265,6 +278,19 @@ export class UIManager {
     return tetrisButton
   }
 
+  createBalatroButton(onClick: () => void): HTMLElement {
+    const balatroButton = document.createElement('button')
+    balatroButton.className = 'balatro-button'
+    balatroButton.textContent = 'BALATRO'
+    
+    balatroButton.addEventListener('click', onClick)
+    
+    const app = document.querySelector<HTMLDivElement>('#app')!
+    app.appendChild(balatroButton)
+    
+    return balatroButton
+  }
+
   createTooltip(): HTMLElement {
     const tooltip = document.createElement('div')
     tooltip.className = 'tooltip'
@@ -339,6 +365,19 @@ export class UIManager {
       }
       // Only show if player has sapphires
       this.elements.sapphiresCounter.style.display = sapphires > 0 ? 'block' : 'none'
+    }
+  }
+
+  updateSpadesCounter(spades: number): void {
+    // Create spades counter if it doesn't exist
+    if (!this.elements.spadesCounter) {
+      this.createSpadesCounter()
+    }
+    
+    if (this.elements.spadesCounter) {
+      this.elements.spadesCounter.textContent = `♠️ ${spades}`
+      // Only show if player has spades
+      this.elements.spadesCounter.style.display = spades > 0 ? 'block' : 'none'
     }
   }
 

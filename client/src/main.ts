@@ -595,6 +595,7 @@ class MikecrementalGame {
     diamonds: 0,
     emeralds: 0,
     sapphires: 0,
+    spades: 0,
     tiles: 0,
     health: 10,
     maxHealth: 10,
@@ -612,13 +613,16 @@ class MikecrementalGame {
     isInLetterGameLaunch: false,
     isInLetterGame: false,
     isInTetrisGame: false,
+    isInLetterShop: false,
+    isInBalatroGame: false,
     bombSliderUnlocked: false,
     bombCount: 1,
     isInSnakeGame: false,
     borderPortalsUnlocked: false,
     discardZoneUnlocked: false,
     letterGameUnlocked: false,
-    tetrisGameUnlocked: false
+    tetrisGameUnlocked: false,
+    balatroGameUnlocked: false
   }
 
   // Bomb count to percentage mapping
@@ -824,6 +828,7 @@ class MikecrementalGame {
       this.ui.createDiamondsCounter()
       this.ui.createEmeraldsCounter()
       this.ui.createSapphiresCounter()
+      this.ui.createSpadesCounter()
       this.ui.createTilesCounter()
       this.ui.createHealthBar()
       this.ui.createTimer()
@@ -947,11 +952,30 @@ class MikecrementalGame {
     return false
   }
 
+  public getSpades(): number {
+    return this.state.spades
+  }
+
+  public addSpades(amount: number): void {
+    this.state.spades += amount
+    this.ui.updateSpadesCounter(this.state.spades)
+  }
+
+  public spendSpades(amount: number): boolean {
+    if (this.state.spades >= amount) {
+      this.state.spades -= amount
+      this.ui.updateSpadesCounter(this.state.spades)
+      return true
+    }
+    return false
+  }
+
   public refreshAllCurrencyDisplays(): void {
     this.ui.updateMoneyCounter(this.state.money)
     this.ui.updateDiamondsCounter(this.state.diamonds)
     this.ui.updateEmeraldsCounter(this.state.emeralds)
     this.ui.updateSapphiresCounter(this.state.sapphires)
+    this.ui.updateSpadesCounter(this.state.spades)
     this.ui.updateTilesCounter(this.state.tiles)
   }
 
@@ -994,11 +1018,20 @@ class MikecrementalGame {
       elements.sapphiresCounter.style.zIndex = '300'
     }
     
+    // Spades counter - visible if player has spades
+    if (elements.spadesCounter && this.state.spades > 0) {
+      elements.spadesCounter.style.display = 'block'
+      elements.spadesCounter.style.position = 'absolute'
+      elements.spadesCounter.style.top = '220px'
+      elements.spadesCounter.style.left = '20px'
+      elements.spadesCounter.style.zIndex = '300'
+    }
+    
     // Tiles counter - visible if player has tiles
     if (elements.tilesCounter && this.state.tiles > 0) {
       elements.tilesCounter.style.display = 'block'
       elements.tilesCounter.style.position = 'absolute'
-      elements.tilesCounter.style.top = '220px'
+      elements.tilesCounter.style.top = '260px'
       elements.tilesCounter.style.left = '20px'
       elements.tilesCounter.style.zIndex = '300'
     }
