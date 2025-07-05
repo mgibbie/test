@@ -199,12 +199,38 @@ export class UIManager {
     shopButton.textContent = 'SHOP'
     shopButton.style.display = 'none'
     
-    shopButton.addEventListener('click', onClick)
+    // Add multiple event listeners to ensure it works on all devices
+    shopButton.addEventListener('click', (e) => {
+      console.log('🛒 Shop button clicked (click event)')
+      e.preventDefault()
+      e.stopPropagation()
+      onClick()
+    })
+    
+    // Add touch event for mobile devices (but don't prevent default to allow click to fire)
+    shopButton.addEventListener('touchend', (e) => {
+      console.log('🛒 Shop button touched (touchend event)')
+      // Don't prevent default - let click event fire naturally
+      e.stopPropagation()
+      
+      // Only call onClick if this was a tap (not a scroll)
+      const touchDuration = Date.now() - (shopButton as any)._touchStartTime
+      if (touchDuration < 300) {
+        onClick()
+      }
+    })
+    
+    // Add debugging for mobile hover fix interaction
+    shopButton.addEventListener('touchstart', (e) => {
+      console.log('🛒 Shop button touch started')
+      ;(shopButton as any)._touchStartTime = Date.now()
+    })
     
     const app = document.querySelector<HTMLDivElement>('#app')!
     app.appendChild(shopButton)
     
     this.elements.shopButton = shopButton
+    console.log('🛒 Shop button created and added to DOM')
     return shopButton
   }
 
@@ -422,8 +448,18 @@ export class UIManager {
   }
 
   showShopButton(): void {
+    console.log('🛒 showShopButton called')
     if (this.elements.shopButton) {
       this.elements.shopButton.style.display = 'block'
+      console.log('🛒 Shop button display set to block')
+      
+      // Add mobile hover fix support
+      if (window.mobileHoverFix) {
+        window.mobileHoverFix.addElement(this.elements.shopButton)
+        console.log('🛒 Added shop button to mobile hover fix')
+      }
+    } else {
+      console.log('🛒 Shop button element not found!')
     }
   }
 

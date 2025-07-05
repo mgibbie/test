@@ -2836,6 +2836,35 @@ class MikecrementalGame {
     }
     return false
   }
+
+  /**
+   * Manual test method to force show the shop button and test functionality
+   */
+  public testShopButton(): void {
+    console.log('🧪 Testing shop button...')
+    console.log('🧪 hasReachedZeroHealth:', this.state.hasReachedZeroHealth)
+    
+    // Force show the shop button for testing
+    this.ui.showShopButton()
+    
+    // Test direct shop opening
+    console.log('🧪 Testing direct shop open...')
+    try {
+      this.shop.openShop()
+      console.log('🧪 Shop opened successfully')
+    } catch (error) {
+      console.error('🧪 Error opening shop:', error)
+    }
+  }
+
+  /**
+   * Force trigger the shop button to appear (for testing)
+   */
+  public forceShowShop(): void {
+    console.log('🧪 Force showing shop button...')
+    this.state.hasReachedZeroHealth = true
+    this.ui.showShopButton()
+  }
 }
 
 // Initialize the game when the DOM is loaded

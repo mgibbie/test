@@ -99,17 +99,9 @@ class MobileHoverFix {
       
       // Only process if this is a quick tap (not a long press or scroll)
       if (touchDuration < 500 && this.touchStartElement === element) {
-        // Simulate click for shop buttons that might not be responding
-        if (element.classList.contains('shop-button') || 
-            element.classList.contains('snake-shop-button') ||
-            element.classList.contains('diamond-shop-button')) {
-          // Force a click event
-          element.dispatchEvent(new MouseEvent('click', {
-            bubbles: true,
-            cancelable: true,
-            view: window
-          }))
-        }
+        console.log('🖱️ Quick tap detected on element:', element.className)
+        // Don't force click - let the normal event handling work
+        // The touch events should trigger the click naturally
       }
       
       element.classList.remove('touch-active')
