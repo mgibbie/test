@@ -81,6 +81,12 @@ class MobileHoverFix {
   }
 
   private addElementListeners(element: Element): void {
+    // Skip shop buttons - let them handle their own events
+    if (element.classList.contains('shop-button')) {
+      console.log('🛒 Skipping mobile hover fix for shop button')
+      return
+    }
+    
     element.addEventListener('touchstart', (e) => {
       this.lastTouchTime = Date.now()
       this.touchStartElement = element

@@ -2865,9 +2865,55 @@ class MikecrementalGame {
     this.state.hasReachedZeroHealth = true
     this.ui.showShopButton()
   }
-}
 
-// Initialize the game when the DOM is loaded
+  /**
+   * Debug the current state of the shop button
+   */
+  public debugShopButton(): void {
+    console.log('🔍 Shop Button Debug Information:')
+    console.log('hasReachedZeroHealth:', this.state.hasReachedZeroHealth)
+    
+    const elements = this.ui.getElements()
+    if (elements.shopButton) {
+      console.log('Shop button element exists:', !!elements.shopButton)
+      console.log('Shop button display:', elements.shopButton.style.display)
+      console.log('Shop button position:', {
+        bottom: elements.shopButton.style.bottom,
+        right: elements.shopButton.style.right,
+        zIndex: elements.shopButton.style.zIndex
+      })
+      console.log('Shop button in DOM:', document.body.contains(elements.shopButton))
+      console.log('Shop button class:', elements.shopButton.className)
+      console.log('Shop button text:', elements.shopButton.textContent)
+    } else {
+      console.log('❌ Shop button element does not exist!')
+    }
+    
+    // Check for all buttons in the DOM
+    const allShopButtons = document.querySelectorAll('.shop-button')
+    console.log('Total .shop-button elements found:', allShopButtons.length)
+    allShopButtons.forEach((btn, index) => {
+      console.log(`Button ${index}:`, {
+        display: (btn as HTMLElement).style.display,
+        text: btn.textContent,
+        visible: (btn as HTMLElement).offsetWidth > 0
+      })
+         })
+   }
+
+   /**
+    * Force cube health to zero and trigger shop button (for testing)
+    */
+   public forceCubeToZero(): void {
+     console.log('🧪 Forcing cube health to zero...')
+     this.state.health = 0
+     this.ui.updateHealthBar(this.state.health, this.state.maxHealth)
+     console.log('🧪 Starting cooldown (should trigger shop button)...')
+     this.startCooldown()
+   }
+ }
+ 
+ // Initialize the game when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
   const game = new MikecrementalGame()
   // Expose game instance for debugging and testing

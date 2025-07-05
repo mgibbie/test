@@ -194,43 +194,46 @@ export class UIManager {
   }
 
   createShopButton(onClick: () => void): HTMLElement {
+    console.log('🛒 Creating shop button...')
     const shopButton = document.createElement('button')
     shopButton.className = 'shop-button'
     shopButton.textContent = 'SHOP'
     shopButton.style.display = 'none'
     
-    // Add multiple event listeners to ensure it works on all devices
-    shopButton.addEventListener('click', (e) => {
-      console.log('🛒 Shop button clicked (click event)')
+    // Simple, reliable click handler
+    const handleClick = (e: Event) => {
+      console.log('🛒 Shop button activated!')
       e.preventDefault()
       e.stopPropagation()
-      onClick()
-    })
+      
+      try {
+        onClick()
+        console.log('🛒 Shop onClick callback executed successfully')
+      } catch (error) {
+        console.error('🛒 Error in shop onClick callback:', error)
+      }
+    }
     
-    // Add touch event for mobile devices (but don't prevent default to allow click to fire)
-    shopButton.addEventListener('touchend', (e) => {
-      console.log('🛒 Shop button touched (touchend event)')
-      // Don't prevent default - let click event fire naturally
+    // Add the click event
+    shopButton.addEventListener('click', handleClick)
+    
+    // For mobile devices, also add touchstart as a backup
+    shopButton.addEventListener('touchstart', (e) => {
+      console.log('🛒 Shop button touch detected')
+      e.preventDefault()
       e.stopPropagation()
       
-      // Only call onClick if this was a tap (not a scroll)
-      const touchDuration = Date.now() - (shopButton as any)._touchStartTime
-      if (touchDuration < 300) {
-        onClick()
-      }
-    })
-    
-    // Add debugging for mobile hover fix interaction
-    shopButton.addEventListener('touchstart', (e) => {
-      console.log('🛒 Shop button touch started')
-      ;(shopButton as any)._touchStartTime = Date.now()
+      // Add a small delay to prevent double-firing
+      setTimeout(() => {
+        handleClick(e)
+      }, 50)
     })
     
     const app = document.querySelector<HTMLDivElement>('#app')!
     app.appendChild(shopButton)
     
     this.elements.shopButton = shopButton
-    console.log('🛒 Shop button created and added to DOM')
+    console.log('🛒 Shop button created and added to DOM with class:', shopButton.className)
     return shopButton
   }
 
@@ -453,11 +456,13 @@ export class UIManager {
       this.elements.shopButton.style.display = 'block'
       console.log('🛒 Shop button display set to block')
       
-      // Add mobile hover fix support
-      if (window.mobileHoverFix) {
-        window.mobileHoverFix.addElement(this.elements.shopButton)
-        console.log('🛒 Added shop button to mobile hover fix')
-      }
+      // Ensure button is visible and clickable
+      this.elements.shopButton.style.visibility = 'visible'
+      this.elements.shopButton.style.pointerEvents = 'auto'
+      
+      console.log('🛒 Shop button styles updated for visibility')
+      
+      // Don't add to mobile hover fix - shop buttons handle their own events
     } else {
       console.log('🛒 Shop button element not found!')
     }
